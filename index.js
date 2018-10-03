@@ -160,7 +160,7 @@ function pgResultCSV({client, query, args=[], format="csv"}) {
   function runquery(req, res, format) {
     let args = queryArgs();
     return client
-      .query(query, queryArgs())
+      .query(query, queryArgs(req))
       .then(({rows}) => {
         let {data, contentType} = formatResult(format, rows);
 
