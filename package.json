@@ -1,0 +1,19 @@
+{
+  "name": "express-pg-export-middleware",
+  "version": "1.0.0",
+  "description": "Middleware for Express.JS to output the results of a PG query directly as CSV, JSON or HTML table",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Gyula Laszlo <gyula.laszlo.gm@gmail.com>",
+  "license": "ISC",
+  "repository": {
+    "type" : "git",
+    "url" : "https://github.com/gyulalaszlo/express-pg-export-middleware.git"
+  },
+  "dependencies": {
+    "papaparse": "^4.6.0"
+  }
+}
