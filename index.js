@@ -214,6 +214,9 @@ function pgResultCSV({client, query, args=[], format="csv", limit=null, offset=0
   function queryWithLimits(query, meta) {
     let queryExtras = [query];
 
+    if (meta.order) {
+      queryExtras.push("ORDER BY " + meta.order + "");
+    }
 
     if (typeof meta.offset === 'number') {
       queryExtras.push("OFFSET " + meta.offset);
@@ -223,9 +226,6 @@ function pgResultCSV({client, query, args=[], format="csv", limit=null, offset=0
       queryExtras.push("LIMIT " + meta.limit);
     }
 
-    if (meta.order) {
-      queryExtras.push("ORDER BY " + meta.order);
-    }
 
     return queryExtras.join(' ');
   }
@@ -235,6 +235,7 @@ function pgResultCSV({client, query, args=[], format="csv", limit=null, offset=0
   function runquery(req, res, format) {
     let meta = queryMeta(req);
     let fullQuery = queryWithLimits(query, meta);
+    console.log(fullQuery);
 
     return client
       .query(fullQuery, queryArgs(req))
