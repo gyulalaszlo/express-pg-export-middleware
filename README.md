@@ -36,6 +36,20 @@ app.use('/test-params', pgResultCSV({
   }))
 
 
+// Some more examples about limit and offset and order
+app.use('/test-limit-offset-order', pgResultCSV({
+  client,
+  query:"select * from information_schema.columns",
+  // output it as an HTML table
+  format: "html",
+  // Specify a default limit and offset to keep things in check
+  // users can later change the limit and offset by using query parameters
+  limit: 100,
+  offset: 10,
+  order: "table_name ASC, column_name DESC",
+}))
+
+
 
 // Return the results of a select where arguments come
 // from the query parameters
