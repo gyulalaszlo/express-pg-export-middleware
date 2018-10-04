@@ -2,12 +2,15 @@ let Papa = require('papaparse');
 
 const ALLOWED_FORMATS = [ 'csv', 'html', 'json', 'json-pretty'];
 
+const DEFAULT_OFFSET = 0;
+const DEFAULT_LIMIT = 3000;
+
 // Formats a result
-function formatResult(format, data) {
+function formatResult(format, data, meta={}) {
   switch(format) {
     case 'csv': return { contentType: 'text/csv', data: Papa.unparse(data)};
     case 'html':
-      return { contentType: 'text/html', data: formatHTML(data) };
+      return { contentType: 'text/html', data: formatHTML(data, meta) };
     case 'json':
       return { contentType: 'application/json', data: JSON.stringify(data) };
     case 'json-pretty':
@@ -41,10 +44,18 @@ table.data tr:nth-child(odd) {background: #fff; }
 .btn:hover { background: #095; color: white; }
 
 .btn-alt-format { text-transform: uppercase; }
+
+.limits-meta,
+.other-formats { display: inline-block; }
+
+.meta {}
+.meta .meta-tag { padding: 0.4em; display: inline-block; }
+.meta .meta-key { color: #ccc; }
+.meta .meta-value { font-weight: bold; }
 `;
 
 
-function HTML(contents) {
+function HTML(contents, meta='') {
   let otherFormats = ALLOWED_FORMATS
     .filter(f => f !== 'html') // do not show the HTML format
     .map(f => `<a title="View as ${f}" href="?format=${f}" class='btn btn-alt-format' target="_blank">${f}</a>`)
@@ -56,9 +67,11 @@ function HTML(contents) {
     <style>${CSS}</style>
   </head>
   <body>
-    <div class="other-formats">
-      <b>Or view as:</b>
-      ${otherFormats}
+    <div class="meta">
+      ${meta}
+      <div class="other-formats">
+        ${otherFormats}
+      </div>
     </div>
     <div class='wrapper'>${contents}</div>
   </body>
@@ -66,7 +79,7 @@ function HTML(contents) {
 `;
 }
 
-function formatHTML(data) {
+function formatHTML(data, meta) {
 
   function td(v) {
     let valueType = typeof v;
@@ -94,6 +107,24 @@ function formatHTML(data) {
     return "<table class='data'>" + parts.join('') +  "</tbody>";
   }
 
+  function metaTag(k, v) {
+    return `<span class="meta-tag meta-${k}" title="Set the query paramter '${k}' to a value to change ${k}">
+      <span class="meta-key">${k}</span>
+      <span class="meta-value">${v}</span>
+    </span>`;
+  }
+
+  function limitsMeta() {
+    let o = [];
+    ['offset', 'limit', 'order'].forEach(k => {
+      if (meta[k]) {
+        o.push(metaTag(k, meta[k]));
+      }
+    });
+
+    return `<div class="limits-meta">${o.join('')}</div>`;
+  }
+
 
   if (!data.length) {
     return "No data";
@@ -110,7 +141,7 @@ function formatHTML(data) {
   let header = thead(keys.map(th));
   let body = tbody(rows);
 
-  return HTML(table([header, body]));
+  return HTML(table([header, body]), limitsMeta());
 
 
 }
@@ -137,7 +168,7 @@ function formatHTML(data) {
  *
  * @returns {express.Middleware}  A new express middleware that will
  */
-function pgResultCSV({client, query, args=[], format="csv"}) {
+function pgResultCSV({client, query, args=[], format="csv", limit=null, offset=0, order=null}) {
   if (!client || typeof client.query !== 'function') {
     throw new Error("Expected a client with a 'query' function");
   }
@@ -155,16 +186,62 @@ function pgResultCSV({client, query, args=[], format="csv"}) {
     queryArgs = () => args;
   }
 
+  // attempts to get an integer from a query parameter that
+  // parsed so less chance of an SQL injection attack
+  function safeRequestInteger(key, req) {
+    let v = req.query[key];
+    if (v) {
+      let vv = parseInt(v);
+      if (vv) {
+        return vv;
+      }
+    }
+    return null;
+  }
+
+  function queryMeta(req) {
+    let _offset = safeRequestInteger("offset", req);
+    let _limit = safeRequestInteger("limit", req);
+    let _order = req.query.order ? req.query.order.split(/;/)[0] : null;
+    return {
+      offset: ((typeof _offset === 'number') ? _offset : offset),
+      limit:  ((typeof _limit === 'number') ? _limit : limit),
+      order: (_order ? _order : order),
+    }
+  }
+
+
+  function queryWithLimits(query, meta) {
+    let queryExtras = [query];
+
+
+    if (typeof meta.offset === 'number') {
+      queryExtras.push("OFFSET " + meta.offset);
+    }
+
+    if (typeof meta.limit === 'number') {
+      queryExtras.push("LIMIT " + meta.limit);
+    }
+
+    if (meta.order) {
+      queryExtras.push("ORDER BY " + meta.order);
+    }
+
+    return queryExtras.join(' ');
+  }
+
 
 
   function runquery(req, res, format) {
-    let args = queryArgs();
-    return client
-      .query(query, queryArgs(req))
-      .then(({rows}) => {
-        let {data, contentType} = formatResult(format, rows);
+    let meta = queryMeta(req);
+    let fullQuery = queryWithLimits(query, meta);
 
-        res.set('Content-Type', contentType);
+    return client
+      .query(fullQuery, queryArgs(req))
+      .then(({rows}) => {
+        let {data, contentType} = formatResult(format, rows, meta);
+
+        res.header("Content-Type", contentType);
         return res.send(data)
       })
       .catch(err => {

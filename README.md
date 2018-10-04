@@ -65,4 +65,25 @@ app.use('/test-request-params', pgResultCSV({
 - *format ('csv'|'json'|'json-pretty')*
   The output format to use.
 
+- *limit*
+  The maximum number of returned records (will add a "LIMIT" cause to the SQL)
+
+- *offset*
+  The start of the returned records (will add an "OFFSET" cause to the SQL)
+
+- *order*
+  An order-by pair. Example: `'created_at DESC'`
+
 @returns {express.Middleware}  A new express middleware that will
+
+
+### Front-end usage
+
+The number and order of the returned data can be customized by the caller of the endpoint by using the following query parameters:
+
+- `limit`
+- `offset`
+- `order`
+
+
+These query parameters correspond to the call parameters of the same name.
