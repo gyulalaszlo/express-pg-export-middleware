@@ -131,7 +131,7 @@ function formatHTML(data, meta) {
   }
 
   let keys = Object.keys(data[0]);
-  let rows = data.slice(1)
+  let rows = data
     // transcode to array-of-arrays
     .map(row => keys.map(k => td(row[k])))
     .map(tr);
